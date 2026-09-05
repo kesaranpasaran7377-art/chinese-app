@@ -4,52 +4,91 @@ HTML
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>中国語単語帳</title>
+    <title>中国語AI学習アプリ</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-        h1 { text-align: center; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        .word { font-size: 2em; font-weight: bold; margin-bottom: 10px; }
-        .pinyin { font-size: 1.2em; color: #666; margin-bottom: 10px; }
-        .meaning { font-size: 1.2em; color: #333; margin-bottom: 15px; }
-        button { background-color: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1em; margin: 5px; }
-        button:hover { background-color: #0056b3; }
-        input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 5px; width: calc(100% - 24px); box-sizing: border-box; }
-        .form-group { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .list-item { background: white; padding: 10px 15px; border-radius: 5px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --warning: #ffc107; --dark: #343a40; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 10px; background-color: #f8f9fa; color: var(--dark); padding-bottom: 80px; }
+        h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
+        
+        /* メイン学習エリア */
+        .study-container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; margin-bottom: 15px; position: relative; min-height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+        .word { font-size: 3.5em; font-weight: bold; margin: 0; line-height: 1.2; cursor: pointer; }
+        .pinyin { font-size: 1.4em; color: #666; margin: 5px 0 15px 0; min-height: 1.5em;}
+        .meaning { font-size: 1.3em; color: var(--dark); background: #eee; padding: 5px 15px; border-radius: 20px; opacity: 1; transition: opacity 0.3s; }
+        .meaning.hidden { opacity: 0; } /* リスニングモードで隠す用 */
+        
+        /* 学習コントロールボタン */
+        .control-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn { border: none; padding: 12px; border-radius: 10px; color: white; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.2s, transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box;}
+        .btn:active { transform: scale(0.98); }
+        .btn-audio { background-color: var(--primary); }
+        .btn-next { background-color: var(--dark); grid-column: span 2; }
+        .btn-listen-mode { background-color: #6f42c1; grid-column: span 2;} /* 自動再生 */
+        .btn-speak-mode { background-color: var(--warning); color: var(--dark); grid-column: span 2;} /* 発音練習 */
+        .btn-speaking { animation: pulseSpeak 1.5s infinite; background-color: var(--danger) !important; color: white !important;} /* 録音中 */
+        
+        /* 判定フィードバック */
+        #speakStatus { font-weight: bold; margin-top: 10px; min-height: 1.5em; font-size: 1.1em;}
+        .status-good { color: var(--success); }
+        .status-try { color: var(--danger); }
+
+        /* 登録フォーム（下部に折りたたみ） */
+        .admin-panel { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px;}
+        .admin-header { cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin: 0;}
+        .admin-content { display: none; margin-top: 15px; }
+        .admin-content.open { display: block; }
+        input { padding: 10px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        .btn-add { background-color: var(--success); width: 100%; }
+        
+        /* 一覧表示 */
+        .word-list { margin-top: 15px; max-height: 200px; overflow-y: auto; border-top: 1px solid #eee; }
+        .list-item { padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;}
+        .btn-delete { background-color: #666; padding: 3px 8px; font-size: 0.8em; margin-left: 10px;}
+
+        /* アニメーション */
+        @keyframes pulseSpeak { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
     </style>
 </head>
 <body>
 
-    <h1>中国語単語帳</h1>
+    <h1>中国語AI学習アプリ</h1>
 
-    <!-- フラッシュカード -->
-    <div class="card" id="flashcard">
-        <div class="word" id="cardWord">単語を追加してください</div>
+    <div class="study-container">
+        <div class="word" id="cardWord" onclick="playAudio('zh')">単語を追加</div>
         <div class="pinyin" id="cardPinyin">-</div>
-        <div class="meaning" id="cardMeaning">-</div>
-        <button onclick="playAudio()">🔊 音声再生</button>
-        <button onclick="nextCard()">次の単語 ➔</button>
+        <div class="meaning" id="cardMeaning" onclick="toggleMeaning()">-</div>
+        <div id="speakStatus"></div> </div>
+
+    <div class="control-panel">
+        <button class="btn btn-audio" onclick="playAudio('zh')">🔊 発音を聞く</button>
+        <button class="btn btn-audio" style="background-color:#888;" onclick="playAudio('ja')">🔊 意味を聞く</button>
+        
+        <button class="btn btn-listen-mode" id="btnAutoPlay" onclick="toggleAutoPlay()">🎧 リスニング (自動再生) 開始</button>
+        <button class="btn btn-speak-mode" id="btnSpeakCheck" onclick="startSpeakCheck()">🎤 発音練習 (AI判定) 開始</button>
+        
+        <button class="btn btn-next" onclick="nextCard()">次の単語へ ➔</button>
     </div>
 
-    <!-- 単語追加フォーム -->
-    <div class="form-group">
-        <h3>新しい単語を追加</h3>
-        <input type="text" id="inputWord" placeholder="中国語 (例: 你好)">
-        <input type="text" id="inputPinyin" placeholder="ピンイン (例: nǐ hǎo)">
-        <input type="text" id="inputMeaning" placeholder="日本語の意味 (例: こんにちは)">
-        <button onclick="addWord()" style="width: 100%; background-color: #28a745;">保存する</button>
+    <div class="admin-panel">
+        <div class="admin-header" onclick="toggleAdmin()">
+            <h3 style="margin:0;">⚙️ 単語の管理・追加</h3>
+            <span id="adminArrow">▼</span>
+        </div>
+        <div class="admin-content" id="adminContent">
+            <input type="text" id="inputWord" placeholder="中国語 (例: 你好)">
+            <input type="text" id="inputPinyin" placeholder="ピンイン (例: nǐ hǎo)">
+            <input type="text" id="inputMeaning" placeholder="日本語の意味 (例: こんにちは)">
+            <button class="btn btn-add" onclick="addWord()">保存する</button>
+            
+            <div class="word-list" id="wordList"></div>
+        </div>
     </div>
 
-    <h3>登録済み単語一覧</h3>
-    <div id="wordList"></div>
-
-    <!-- Firebase SDK (v9/v10 Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // Firebase 設定
+        // --- Firebase 設定 (あなたの設定キー) ---
         const firebaseConfig = {
             apiKey: "AIzaSyCiqmPyDLyQqgj4Xco-68JUeScrlNluUyA",
             authDomain: "chinese-app-11197.firebaseapp.com",
@@ -59,96 +98,183 @@ HTML
             appId: "1:522745395693:web:aafbb071a78aeadf8b8fe4",
             measurementId: "G-SHFRT080X1"
         };
-
-        // Firebase 初期化
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
         let words = [];
         let currentIndex = 0;
+        let isAutoPlaying = false; // 自動再生状態
+        let autoPlayTimer;
+        
+        // 音声認識の初期化 (Web Speech API)
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN'; // 中国語を認識
+            recognition.interimResults = false; // 途中経過は不要
+        }
 
-        // リアルタイムでデータを取得
-        db.collection("words").onSnapshot((snapshot) => {
-            words = [];
-            document.getElementById("wordList").innerHTML = "";
+        // --- 核心機能: 音声合成 (読み上げ) ---
+        function playAudio(lang, textToSpeak = null) {
+            if (words.length === 0 && !textToSpeak) return;
+            window.speechSynthesis.cancel(); // 前の再生をキャンセル
+
+            const current = words[currentIndex % words.length];
+            const text = textToSpeak || (lang === 'zh' ? current.word : current.meaning);
             
-            snapshot.forEach((doc) => {
-                const item = doc.data();
-                item.id = doc.id;
-                words.push(item);
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'zh' ? 'zh-CN' : 'ja-JP'; // 言語設定
+            utterance.rate = 0.9; // 少しゆっくり
 
-                // 一覧表示の更新
-                const div = document.createElement("div");
-                div.className = "list-item";
-                div.innerHTML = `
-                    <div><strong>${item.word}</strong> (${item.pinyin}) : ${item.meaning}</div>
-                    <button onclick="deleteWord('${item.id}')" style="background-color: #dc3545; padding: 5px 10px;">削除</button>
-                `;
-                document.getElementById("wordList").appendChild(div);
+            return new Promise(resolve => {
+                utterance.onend = resolve; // 再生終了を待つ
+                window.speechSynthesis.speak(utterance);
             });
+        }
 
-            if (words.length > 0) {
-                showCard(currentIndex % words.length);
-            } else {
-                document.getElementById("cardWord").innerText = "単語を追加してください";
-                document.getElementById("cardPinyin").innerText = "-";
-                document.getElementById("cardMeaning").innerText = "-";
-            }
-        });
-
-        // カード表示
-        function showCard(index) {
+        // --- 核心機能A: リスニング (自動再生モード) ---
+        async function toggleAutoPlay() {
+            const btn = document.getElementById("btnAutoPlay");
             if (words.length === 0) return;
-            currentIndex = index;
-            const current = words[currentIndex];
+
+            if (isAutoPlaying) {
+                // 停止処理
+                isAutoPlaying = false;
+                btn.innerText = "🎧 リスニング (自動再生) 開始";
+                btn.style.backgroundColor = "#6f42c1";
+                window.speechSynthesis.cancel();
+            } else {
+                // 開始処理
+                isAutoPlaying = true;
+                btn.innerText = "⏹️ 自動再生を停止";
+                btn.style.backgroundColor = var(--danger);
+                hideMeaning(true); // 意味を隠す
+                runAutoPlayLoop();
+            }
+        }
+
+        async function runAutoPlayLoop() {
+            while (isAutoPlaying && words.length > 0) {
+                // 1. 中国語読み上げ
+                await playAudio('zh');
+                await new Promise(r => setTimeout(r, 1000)); // 1秒待機(考える時間)
+
+                if (!isAutoPlaying) break;
+
+                // 2. 意味を表示
+                hideMeaning(false);
+                // 3. 日本語意味読み上げ
+                await playAudio('ja');
+                await new Promise(r => setTimeout(r, 2000)); // 2秒待機
+
+                if (!isAutoPlaying) break;
+
+                // 4. 次へ
+                hideMeaning(true);
+                nextCard();
+            }
+        }
+
+        // --- 核心機能B: スピーキング (発音AI判定モード) ---
+        function startSpeakCheck() {
+            if (!SpeechRecognition) { alert("このブラウザは音声認識に対応していません。ChromeやSafariの最新版をお使いください。"); return; }
+            if (words.length === 0 || isAutoPlaying) return;
+
+            const current = words[currentIndex % words.length];
+            const targetWord = current.word; // 正解の文字列
+            const btn = document.getElementById("btnSpeakCheck");
+            const status = document.getElementById("speakStatus");
+
+            btn.classList.add("btn-speaking");
+            btn.innerText = "🎙️ 録音中... 発音してください";
+            status.innerText = "お聞きしています...";
+            status.className = "";
+
+            recognition.start(); // 録音開始
+
+            recognition.onresult = (event) => {
+                const spokenText = event.results[0][0].transcript; // 認識された文字列
+                status.innerText = `あなたの発音: "${spokenText}"`;
+
+                // 判定ロジック (完全一致で判定)
+                if (spokenText === targetWord) {
+                    status.innerHTML += "<br><span class='status-good'>🎉 合格！完璧です！</span>";
+                    playAudio('zh', "真棒"); // "素晴らしい"と褒める
+                } else {
+                    status.innerHTML += `<br><span class='status-try'>😢 惜しい！正解は「${targetWord}」です。もう一度？</span>`;
+                }
+            };
+
+            recognition.onerror = (event) => {
+                status.innerText = "音声が認識できませんでした。マイク許可を確認してください。";
+                status.className = "status-try";
+            };
+
+            recognition.onend = () => {
+                btn.classList.remove("btn-speaking");
+                btn.innerText = "🎤 発音練習 (AI判定) 開始";
+            };
+        }
+
+        // --- 基礎機能: カード操作 ---
+        function nextCard() {
+            if (words.length === 0) return;
+            document.getElementById("speakStatus").innerText = ""; // ステータスクリア
+            if(!isAutoPlaying) hideMeaning(false); // 通常モードでは意味を表示
+            currentIndex++;
+            showCard(currentIndex % words.length);
+        }
+
+        function showCard(index) {
+            const current = words[index];
             document.getElementById("cardWord").innerText = current.word;
             document.getElementById("cardPinyin").innerText = current.pinyin;
             document.getElementById("cardMeaning").innerText = current.meaning;
         }
 
-        // 次のカードへ
-        function nextCard() {
-            if (words.length === 0) return;
-            currentIndex = (currentIndex + 1) % words.length;
-            showCard(currentIndex);
+        function toggleMeaning() {
+            const meaning = document.getElementById("cardMeaning");
+            meaning.classList.toggle("hidden");
+        }
+        
+        function hideMeaning(shouldHide) {
+            const meaning = document.getElementById("cardMeaning");
+            if (shouldHide) meaning.classList.add("hidden");
+            else meaning.classList.remove("hidden");
         }
 
-        // 音声再生
-        function playAudio() {
-            if (words.length === 0) return;
-            const text = words[currentIndex].word;
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'zh-CN';
-            window.speechSynthesis.speak(utterance);
+        // --- 基礎機能: 単語管理・UI ---
+        function toggleAdmin() {
+            document.getElementById("adminContent").classList.toggle("open");
+            document.getElementById("adminArrow").innerText = document.getElementById("adminContent").classList.contains("open") ? "▲" : "▼";
         }
 
-        // 単語追加
+        // データ同期 (Firestore)
+        db.collection("words").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+            words = [];
+            document.getElementById("wordList").innerHTML = "";
+            snapshot.forEach((doc) => {
+                const item = doc.data(); item.id = doc.id; words.push(item);
+                const div = document.createElement("div");
+                div.className = "list-item";
+                div.innerHTML = `<div><strong>${item.word}</strong> (${item.pinyin})</div><button class="btn-delete" onclick="deleteWord('${item.id}')">削除</button>`;
+                document.getElementById("wordList").appendChild(div);
+            });
+            if (words.length > 0) showCard(currentIndex % words.length);
+        });
+
         function addWord() {
             const word = document.getElementById("inputWord").value;
             const pinyin = document.getElementById("inputPinyin").value;
             const meaning = document.getElementById("inputMeaning").value;
-
-            if (!word || !meaning) {
-                alert("中国語と日本語の意味を入力してください。");
-                return;
-            }
-
-            db.collection("words").add({
-                word: word,
-                pinyin: pinyin,
-                meaning: meaning,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                document.getElementById("inputWord").value = "";
-                document.getElementById("inputPinyin").value = "";
-                document.getElementById("inputMeaning").value = "";
-            });
+            if (!word || !meaning) return;
+            db.collection("words").add({ word, pinyin, meaning, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+            .then(() => { document.getElementById("inputWord").value = ""; document.getElementById("inputPinyin").value = ""; document.getElementById("inputMeaning").value = ""; });
         }
 
-        // 単語削除
-        function deleteWord(id) {
-            db.collection("words").doc(id).delete();
-        }
+        function deleteWord(id) { if(confirm("削除しますか？")) db.collection("words").doc(id).delete(); }
+
     </script>
 </body>
 </html>
