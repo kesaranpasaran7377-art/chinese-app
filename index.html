@@ -1,9 +1,154 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyCiqmPyDLyQqgj4Xco-68JUeScrlNluUyA",
-  authDomain: "chinese-app-11197.firebaseapp.com",
-  projectId: "chinese-app-11197",
-  storageBucket: "chinese-app-11197.firebasestorage.app",
-  messagingSenderId: "522745395693",
-  appId: "1:522745395693:web:aafbb071a78aeadf8b8fe4",
-  measurementId: "G-SHFRT080X1"
-};
+HTML
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国語単語帳</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        h1 { text-align: center; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+        .word { font-size: 2em; font-weight: bold; margin-bottom: 10px; }
+        .pinyin { font-size: 1.2em; color: #666; margin-bottom: 10px; }
+        .meaning { font-size: 1.2em; color: #333; margin-bottom: 15px; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1em; margin: 5px; }
+        button:hover { background-color: #0056b3; }
+        input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 5px; width: calc(100% - 24px); box-sizing: border-box; }
+        .form-group { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .list-item { background: white; padding: 10px 15px; border-radius: 5px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <h1>中国語単語帳</h1>
+
+    <!-- フラッシュカード -->
+    <div class="card" id="flashcard">
+        <div class="word" id="cardWord">単語を追加してください</div>
+        <div class="pinyin" id="cardPinyin">-</div>
+        <div class="meaning" id="cardMeaning">-</div>
+        <button onclick="playAudio()">🔊 音声再生</button>
+        <button onclick="nextCard()">次の単語 ➔</button>
+    </div>
+
+    <!-- 単語追加フォーム -->
+    <div class="form-group">
+        <h3>新しい単語を追加</h3>
+        <input type="text" id="inputWord" placeholder="中国語 (例: 你好)">
+        <input type="text" id="inputPinyin" placeholder="ピンイン (例: nǐ hǎo)">
+        <input type="text" id="inputMeaning" placeholder="日本語の意味 (例: こんにちは)">
+        <button onclick="addWord()" style="width: 100%; background-color: #28a745;">保存する</button>
+    </div>
+
+    <h3>登録済み単語一覧</h3>
+    <div id="wordList"></div>
+
+    <!-- Firebase SDK (v9/v10 Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyCiqmPyDLyQqgj4Xco-68JUeScrlNluUyA",
+            authDomain: "chinese-app-11197.firebaseapp.com",
+            projectId: "chinese-app-11197",
+            storageBucket: "chinese-app-11197.firebasestorage.app",
+            messagingSenderId: "522745395693",
+            appId: "1:522745395693:web:aafbb071a78aeadf8b8fe4",
+            measurementId: "G-SHFRT080X1"
+        };
+
+        // Firebase 初期化
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let words = [];
+        let currentIndex = 0;
+
+        // リアルタイムでデータを取得
+        db.collection("words").onSnapshot((snapshot) => {
+            words = [];
+            document.getElementById("wordList").innerHTML = "";
+            
+            snapshot.forEach((doc) => {
+                const item = doc.data();
+                item.id = doc.id;
+                words.push(item);
+
+                // 一覧表示の更新
+                const div = document.createElement("div");
+                div.className = "list-item";
+                div.innerHTML = `
+                    <div><strong>${item.word}</strong> (${item.pinyin}) : ${item.meaning}</div>
+                    <button onclick="deleteWord('${item.id}')" style="background-color: #dc3545; padding: 5px 10px;">削除</button>
+                `;
+                document.getElementById("wordList").appendChild(div);
+            });
+
+            if (words.length > 0) {
+                showCard(currentIndex % words.length);
+            } else {
+                document.getElementById("cardWord").innerText = "単語を追加してください";
+                document.getElementById("cardPinyin").innerText = "-";
+                document.getElementById("cardMeaning").innerText = "-";
+            }
+        });
+
+        // カード表示
+        function showCard(index) {
+            if (words.length === 0) return;
+            currentIndex = index;
+            const current = words[currentIndex];
+            document.getElementById("cardWord").innerText = current.word;
+            document.getElementById("cardPinyin").innerText = current.pinyin;
+            document.getElementById("cardMeaning").innerText = current.meaning;
+        }
+
+        // 次のカードへ
+        function nextCard() {
+            if (words.length === 0) return;
+            currentIndex = (currentIndex + 1) % words.length;
+            showCard(currentIndex);
+        }
+
+        // 音声再生
+        function playAudio() {
+            if (words.length === 0) return;
+            const text = words[currentIndex].word;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 単語追加
+        function addWord() {
+            const word = document.getElementById("inputWord").value;
+            const pinyin = document.getElementById("inputPinyin").value;
+            const meaning = document.getElementById("inputMeaning").value;
+
+            if (!word || !meaning) {
+                alert("中国語と日本語の意味を入力してください。");
+                return;
+            }
+
+            db.collection("words").add({
+                word: word,
+                pinyin: pinyin,
+                meaning: meaning,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                document.getElementById("inputWord").value = "";
+                document.getElementById("inputPinyin").value = "";
+                document.getElementById("inputMeaning").value = "";
+            });
+        }
+
+        // 単語削除
+        function deleteWord(id) {
+            db.collection("words").doc(id).delete();
+        }
+    </script>
+</body>
+</html>
